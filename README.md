@@ -10,6 +10,9 @@
 # KẾ HOẠCH PHÂN CÔNG:
 [Link sheets](https://docs.google.com/spreadsheets/d/1aliCbcj5VMrNOlHLznjXiR95PLwh1XnNA3xLeC2Zq_o/edit?usp=sharing)
 
+# LINK FILE COLAB:
+[link colab](https://colab.research.google.com/github/TranPhu1999/Parallel_Programing_Face_mask_detection/blob/main/Report.ipynb)
+
 # MÔ TẢ ỨNG DỤNG:
 - Tên ứng dụng: Nhận diện người đeo khẩu trang với mô hình yolov3
 
