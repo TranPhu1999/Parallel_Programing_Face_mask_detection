@@ -22,3 +22,5 @@
 
 - Ý nghĩa thực tế: Khi tình hình dịch đang còn lây lan mạnh trên cả nước thì việc đeo khẩu trang ra đường thực sự là rất cần thiết vì nó không chỉ bảo vệ bản thân mà còn bảo vệ cho những người xung quanh nên việc nhận diện người đeo khẩu trang sai cách thật sự rất quan trọng
 Ứng dụng này cần phải tăng tốc vì mô hình được huấn luyện trên một mạng convolutional neural network
+
+![mask-detection](https://user-images.githubusercontent.com/57826455/167245494-40d85677-ce59-4351-8f70-1975791e3d2b.png)
