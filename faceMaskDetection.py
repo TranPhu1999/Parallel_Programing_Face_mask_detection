@@ -1,0 +1,1 @@
+#init file tuần tự
