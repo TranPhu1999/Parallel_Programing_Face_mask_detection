@@ -25,7 +25,8 @@ yolo_max_boxes = 100
 yolo_iou_threshold = 0.5
 yolo_score_threshold = 0.5
 # customize model through the following parameters
-flags.DEFINE_integer('yolo_max_boxes', 10, 'maximum number of detections at one time')
+flags.DEFINE_integer('yolo_max_boxes', 10,
+                     'maximum number of detections at one time')
 flags.DEFINE_float('yolo_iou_threshold', 0.5, 'iou threshold')
 flags.DEFINE_float('yolo_score_threshold', 0.5, 'score threshold')
 
@@ -33,6 +34,7 @@ yolo_anchors = np.array([(10, 13), (16, 30), (33, 23), (30, 61), (62, 45),
                          (59, 119), (116, 90), (156, 198), (373, 326)],
                         np.float32) / 416
 yolo_anchor_masks = np.array([[6, 7, 8], [3, 4, 5], [0, 1, 2]])
+
 
 class BatchNormalization(tf.keras.layers.BatchNormalization):
     """
@@ -44,8 +46,8 @@ class BatchNormalization(tf.keras.layers.BatchNormalization):
             training = tf.constant(False)
         training = tf.logical_and(training, self.trainable)
         return super().call(x, training)
- 
- def DarknetConv(x, filters, size, strides=1, batch_norm=True):
+
+def DarknetConv(x, filters, size, strides=1, batch_norm=True):
     if strides == 1:
         padding = 'same'
     else:
@@ -59,20 +61,20 @@ class BatchNormalization(tf.keras.layers.BatchNormalization):
         x = LeakyReLU(alpha=0.1)(x)
     return x
     
-   def DarknetResidual(x, filters):
+def DarknetResidual(x, filters):
     prev = x
     x = DarknetConv(x, filters // 2, 1)
     x = DarknetConv(x, filters, 3)
     x = Add()([prev, x])
     return x
     
-   def DarknetBlock(x, filters, blocks):
+def DarknetBlock(x, filters, blocks):
     x = DarknetConv(x, filters, 3, strides=2)
     for _ in range(blocks):
         x = DarknetResidual(x, filters)
     return x
    
-   def Darknet(name=None):
+def Darknet(name=None):
     x = inputs = Input([None, None, 3])
     x = DarknetConv(x, 32, 3)
     x = DarknetBlock(x, 64, 1)
@@ -82,7 +84,7 @@ class BatchNormalization(tf.keras.layers.BatchNormalization):
     x_13 = DarknetBlock(x, 1024, 4)
     return tf.keras.Model(inputs, (x_52, x_26, x_13), name=name)
     
-   def YoloConv(filters, name=None):
+def YoloConv(filters, name=None):
     def yolo_conv(x_in):
         if isinstance(x_in, tuple):
             inputs = Input(x_in[0].shape[1:]), Input(x_in[1].shape[1:])
@@ -104,7 +106,7 @@ class BatchNormalization(tf.keras.layers.BatchNormalization):
     return yolo_conv
    
    
-   def YoloOutput(filters, anchors, classes, name=None):
+def YoloOutput(filters, anchors, classes, name=None):
     def yolo_output(x_in):
         x = inputs = Input(x_in.shape[1:])
         x = DarknetConv(x, filters * 2, 3)
@@ -114,7 +116,7 @@ class BatchNormalization(tf.keras.layers.BatchNormalization):
         return tf.keras.Model(inputs, x, name=name)(x_in)
     return yolo_output
    
- def yolo_boxes(pred, anchors, classes):
+def yolo_boxes(pred, anchors, classes):
   # pred: (batch_size, grid, grid, anchors, (x, y, w, h, obj, ...classes))
   grid_size = tf.shape(pred)[1]
   box_xy, box_wh, objectness, class_probs = tf.split(
@@ -140,7 +142,7 @@ class BatchNormalization(tf.keras.layers.BatchNormalization):
   return bbox, objectness, class_probs, pred_box
     
    
-   def yolo_nms(outputs, anchors, masks, classes):
+def yolo_nms(outputs, anchors, masks, classes):
     # boxes, conf, type
     b, c, t = [], [], []
 
@@ -166,7 +168,7 @@ class BatchNormalization(tf.keras.layers.BatchNormalization):
 
     return boxes, scores, classes, valid_detections
     
-   def YoloV3(size=None, channels=3, anchors=yolo_anchors,
+def YoloV3(size=None, channels=3, anchors=yolo_anchors,
            masks=yolo_anchor_masks, classes=80, training=False):
     physical_devices = tf.config.experimental.list_physical_devices('GPU')
     if len(physical_devices) > 0:
@@ -196,45 +198,45 @@ class BatchNormalization(tf.keras.layers.BatchNormalization):
 
     return Model(inputs, outputs, name='yolov3')
     
-   def transform_images(x_train, size):
+def transform_images(x_train, size):
     x_train = tf.image.resize(x_train, (size, size))
     x_train = x_train / 255
     return x_train
     
    
 def draw_outputs(img, outputs, class_names):
-from seaborn import color_palette
-from PIL import Image, ImageDraw, ImageFont
-import cv2
-colors = ((np.array(color_palette("hls", 80)) * 255)).astype(np.uint8)
-boxes, objectness, classes, nums = outputs
-boxes, objectness, classes, nums = boxes[0], objectness[0], classes[0], nums[0]
-wh = np.flip(img.shape[0:2])
-img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-img = Image.fromarray(img)
-draw = ImageDraw.Draw(img)
+    from seaborn import color_palette
+    from PIL import Image, ImageDraw, ImageFont
+    import cv2
+    colors = ((np.array(color_palette("hls", 80)) * 255)).astype(np.uint8)
+    boxes, objectness, classes, nums = outputs
+    boxes, objectness, classes, nums = boxes[0], objectness[0], classes[0], nums[0]
+    wh = np.flip(img.shape[0:2])
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img = Image.fromarray(img)
+    draw = ImageDraw.Draw(img)
 
-for i in range(nums):
-    color = colors[int(classes[i])]
-    x1y1 = ((np.array(boxes[i][0:2]) * wh).astype(np.int32))
-    x2y2 = ((np.array(boxes[i][2:4]) * wh).astype(np.int32))
-    thickness = (img.size[0] + img.size[1]) // 200
-    x0, y0 = x1y1[0], x1y1[1]
-    for t in np.linspace(0, 1, thickness):
-        x1y1[0], x1y1[1] = x1y1[0] - t, x1y1[1] - t
-        x2y2[0], x2y2[1] = x2y2[0] - t, x2y2[1] - t
-        draw.rectangle([x1y1[0], x1y1[1], x2y2[0], x2y2[1]], outline=tuple(color))
-    confidence = '{:.2f}%'.format(objectness[i]*100)
-    text = '{} {}'.format(class_names[int(classes[i])], confidence)
-    text_size = draw.textsize(text)
-    draw.rectangle([x0, y0 - text_size[1], x0 + text_size[0], y0],
-                    fill=tuple(color))
-    draw.text((x0, y0 - text_size[1]), text, fill='black')
-rgb_img = img.convert('RGB')
-img_np = np.asarray(rgb_img)
-img = cv2.cvtColor(img_np, cv2.COLOR_BGR2RGB)
+    for i in range(nums):
+        color = colors[int(classes[i])]
+        x1y1 = ((np.array(boxes[i][0:2]) * wh).astype(np.int32))
+        x2y2 = ((np.array(boxes[i][2:4]) * wh).astype(np.int32))
+        thickness = (img.size[0] + img.size[1]) // 200
+        x0, y0 = x1y1[0], x1y1[1]
+        for t in np.linspace(0, 1, thickness):
+            x1y1[0], x1y1[1] = x1y1[0] - t, x1y1[1] - t
+            x2y2[0], x2y2[1] = x2y2[0] - t, x2y2[1] - t
+            draw.rectangle([x1y1[0], x1y1[1], x2y2[0], x2y2[1]], outline=tuple(color))
+        confidence = '{:.2f}%'.format(objectness[i]*100)
+        text = '{} {}'.format(class_names[int(classes[i])], confidence)
+        text_size = draw.textsize(text)
+        draw.rectangle([x0, y0 - text_size[1], x0 + text_size[0], y0],
+                        fill=tuple(color))
+        draw.text((x0, y0 - text_size[1]), text, fill='black')
+    rgb_img = img.convert('RGB')
+    img_np = np.asarray(rgb_img)
+    img = cv2.cvtColor(img_np, cv2.COLOR_BGR2RGB)
 
-return img
+    return img
 
 def return_image(filename):    
 
