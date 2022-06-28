@@ -1,1 +1,7 @@
 #How To Run
+
+Bước 1: Tải file cần chạy lên colab
+Bước 2: tải file chứa trọng số đã được train(file tên là: yolov3_mask.weights)
+Bước 3: tải file ảnh cần nhận diện người đeo khẩu trang hay không
+bước 4: để chạy được file ta cần làm theo cú pháp sau: !python fileName file_trọng_số file_ảnh
+Bước 5: nhấn vào nút run và đợi kết quả
