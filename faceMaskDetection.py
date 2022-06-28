@@ -368,7 +368,6 @@ def YoloV3(inputs, size=None, channels=3, anchors=yolo_anchors,
     return outputs
 
 
-weights_path = '/content/drive/MyDrive/Tài liệu các môn học /Lập trình song song ứng dụng/Lập trình song song ứng dụng/yolov3_mask.weights'
 size = 416                 # size images are resized to for model
 num_classes = 3            # number of classes in model
 class_names = ["mask_weared_incorrect,", "with_mask", "without_mask"]
