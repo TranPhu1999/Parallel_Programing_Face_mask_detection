@@ -112,8 +112,7 @@ def npLeakyReLU(x, alpha=0.01):
     return np.where(x >= 0, x, x*alpha)
 
 # Layer Darknet Conv bao gồm 1 layer convole đi kèm với batch normalization và leakyReLU
-
-
+@jit()
 def DarknetConv(x, filters, size, strides=1, batch_norm=True):
     if strides == 1:
         padding = 'same'
@@ -132,14 +131,10 @@ def DarknetConv(x, filters, size, strides=1, batch_norm=True):
     if batch_norm is False:
         # read bias weight of convolutional layer if there is no batch normalization
         bias = np.fromfile(weight_file, dtype=np.float32, count=filters)
-        # print("bias: ", bias.shape)
-        # print(bias)
     else:
         # read batch normalization layer weight
         bn_weights = np.fromfile(
             weight_file, dtype=np.float32, count=4*filters)
-        # print("bn_weights: ", bn_weights.shape)
-        # print(bn_weights)
         bn_weights = bn_weights.reshape((4, filters))
         beta, gamma, moving_mean, moving_variance = bn_weights
 
@@ -147,22 +142,17 @@ def DarknetConv(x, filters, size, strides=1, batch_norm=True):
     conv_shape = (filters, x.shape[-1], size, size)
     kernel = np.fromfile(weight_file, dtype=np.float32,
                          count=np.product(conv_shape))
-    # print("kernel: ",kernel.shape)
-    # tf shape (height, width, in_dim, out_dim)
     kernel = kernel.reshape(conv_shape).transpose([2, 3, 1, 0])
-    # print(kernel)
 # ------------------------------------------------------------------------
-
     x = Convolution_forward(input=x, kernel=kernel, filters=filters,
                             bias=bias, stride=strides, padding=padding, use_batchnorm=batch_norm)
     if batch_norm:
         x = BatchNormalization_forward(
             x, gamma, beta, moving_mean, moving_variance)
-        # x = LeakyReLU(alpha=0.1)(x)
         x = npLeakyReLU(x, alpha=0.1)
     return x
 
-
+@jit()
 def DarknetResidual(x, filters):
     prev = x  # Skip connection, giúp các mạng neural có cấu trúc quá sâu giảm thiểu mất mát feature khi đi xuống
     x = DarknetConv(x, filters // 2, 1)
@@ -171,15 +161,14 @@ def DarknetResidual(x, filters):
     return x
 
 # Mỗi Darknet Block gồm 1 Darknet convole và n Darknet Residual
-
-
+@jit()
 def DarknetBlock(x, filters, blocks):
     x = DarknetConv(x, filters, 3, strides=2)
     for _ in range(blocks):
         x = DarknetResidual(x, filters)
     return x
 
-
+@jit()
 def Darknet(inputs):
     x = inputs
     x = DarknetConv(x, 32, 3)
@@ -191,7 +180,6 @@ def Darknet(inputs):
     return x_36, x_61, x
 
 # Block các layer riêng của YOLO dùng cho object detection
-
 
 def YoloConv(filters, name=None):
     def yolo_conv(x_in):
@@ -218,7 +206,6 @@ def YoloConv(filters, name=None):
 
 # Layer trả output
 
-
 def YoloOutput(filters, anchors, classes, name=None):
     def yolo_output(x_in):
         x = x_in
@@ -240,7 +227,7 @@ def sigmoid(x):
     sig = 1 / (1 + z)
     return sig
 
-
+@jit()
 def yolo_boxes(pred, anchors, classes):
     grid_size = np.shape(pred)[1]
 
@@ -267,7 +254,7 @@ def yolo_boxes(pred, anchors, classes):
 
 # reference: https://towardsdatascience.com/non-maxima-suppression-139f7e00f0b5
 
-
+@jit()
 def combined_non_max_suppression(boxes, scores, iou_threshold, score_threshold):
     # Return an empty list, if no boxes given
     if np.shape(boxes)[0] == 0:
@@ -320,7 +307,7 @@ def combined_non_max_suppression(boxes, scores, iou_threshold, score_threshold):
     classes_result = classes[indices]
     return boxes_result[:, 0, :], scores_result[:, 0], classes_result
 
-
+@jit()
 def yolo_nms(outputs, anchors, masks, classes):
     # boxes, objectness, class_probs
     b, c, t = [], [], []
@@ -346,7 +333,7 @@ def yolo_nms(outputs, anchors, masks, classes):
 
     return boxes, scores, classes
 
-
+@jit()
 def YoloV3(inputs, size=None, channels=3, anchors=yolo_anchors,
            masks=yolo_anchor_masks, classes=3):
 
@@ -355,7 +342,6 @@ def YoloV3(inputs, size=None, channels=3, anchors=yolo_anchors,
 
     x = inputs
     x_36, x_61, x = Darknet(x)
-    # x_36,x = Darknet(x)
 
     x = YoloConv(512)(x)
     output_0 = YoloOutput(512, len(masks[0]), classes)(x)
@@ -389,7 +375,7 @@ class_names = ["mask_weared_incorrect,", "with_mask", "without_mask"]
 
 # Reference: https://meghal-darji.medium.com/implementing-bilinear-interpolation-for-image-resizing-357cbb2c2722
 
-
+@jit()
 def img_resize(original_img, new_h, new_w):
     import numpy as np
     import math
@@ -439,9 +425,7 @@ def img_resize(original_img, new_h, new_w):
 # Chuẩn hóa ảnh đầu vào về kích thước 416x416 và giá trị pixel trong khoản (0,1)
 def transform_images(x_train, size):
     import cv2
-    # x_train = tf.image.resize(x_train, (size, size))
     x_train = img_resize(x_train, size, size)
-
     x_train = x_train / 255
     return x_train
 
@@ -494,12 +478,10 @@ def Main():
     img_raw = cv2.imread(sys.argv[2])
     img_raw = cv2.cvtColor(img_raw, cv2.COLOR_BGR2RGB)
 
-    # img = np.expand_dims(img_raw, 0)
     img = transform_images(img_raw, size)
     img = np.expand_dims(img, 0)
 
     t1 = time.time()
-    # boxes, scores, classes = yolo(img)
     boxes, scores, classes = YoloV3(img, classes=num_classes)
     t2 = time.time()
 
