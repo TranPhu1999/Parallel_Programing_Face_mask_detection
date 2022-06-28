@@ -8,6 +8,9 @@ import tensorflow as tf
 
 import sys
 
+import warnings
+warnings.filterwarnings("ignore")
+
 yolo_max_boxes = 10
 yolo_iou_threshold = 0.5
 yolo_score_threshold = 0.5
