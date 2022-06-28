@@ -21,6 +21,9 @@ from tensorflow.keras.losses import (
     sparse_categorical_crossentropy
 )
 
+import warnings
+warnings.filterwarnings("ignore")
+
 yolo_max_boxes = 100
 yolo_iou_threshold = 0.5
 yolo_score_threshold = 0.5
