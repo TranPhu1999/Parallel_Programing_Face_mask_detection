@@ -5,9 +5,10 @@ import numpy as np
 import numba
 from numba import jit
 import tensorflow as tf
+import time
+import cv2
 
-import sys
-
+import argparse
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -487,45 +488,49 @@ def draw_outputs(img, outputs, class_names):
     return img
 
 
-def Main():
+def return_image(filename):
+  img_raw = cv2.imread(filename)
+  img_raw = cv2.cvtColor(img_raw, cv2.COLOR_BGR2RGB)
 
-    import time
-    import cv2
+  img = transform_images(img_raw, size)
+  img = np.expand_dims(img, 0)
 
-    if len(sys.argv) < 3:
-        print('Missing input file')
-        return
+  boxes, scores, classes = YoloV3(img, classes=num_classes)
 
-    img_raw = cv2.imread(sys.argv[2])
-    img_raw = cv2.cvtColor(img_raw, cv2.COLOR_BGR2RGB)
+  print('detections:')
 
-    img = transform_images(img_raw, size)
-    img = np.expand_dims(img, 0)
+  class_names_local = class_names
 
-    t1 = time.time()
-    boxes, scores, classes = YoloV3(img, classes=num_classes)
-    t2 = time.time()
+  for i in range(len(boxes)):
+      print('\t{}, {}, {}'.format(class_names_local[int(
+          classes[i])], np.array(scores[i]), np.array(boxes[i])))
+  img = cv2.cvtColor(img_raw, cv2.COLOR_RGB2BGR)
+  img = draw_outputs(img, (boxes, scores, classes), class_names_local)
 
-    print('time: {}'.format(t2 - t1))
-
-    print('detections:')
-
-    class_names_local = class_names
-
-    for i in range(len(boxes)):
-        print('\t{}, {}, {}'.format(class_names_local[int(
-            classes[i])], np.array(scores[i]), np.array(boxes[i])))
-    img = cv2.cvtColor(img_raw, cv2.COLOR_RGB2BGR)
-    img = draw_outputs(img, (boxes, scores, classes), class_names_local)
-
-    return img
+  return img
 
 
-weight_file = open(sys.argv[1], "rb")
-major, minor, revision, seen, _ = np.fromfile(
-    weight_file, dtype=np.float32, count=5)
+# weight_file = open(sys.argv[1], "rb")
+# major, minor, revision, seen, _ = np.fromfile(
+#     weight_file, dtype=np.float32, count=5)
 
 if __name__ == "__main__":
-    img = Main()
-    # from google.colab.patches import cv2_imshow
-    # cv2_imshow(img)
+# Construct an argument parser
+  all_args = argparse.ArgumentParser()
+
+# Add arguments to the parser
+  all_args.add_argument("-image", "--path_to_img", required=True)
+  all_args.add_argument("-weight", "--path_to_weight", required=True)
+  args = vars(all_args.parse_args())
+  
+  weight_file = open(args["path_to_weight"], "rb")
+  major, minor, revision, seen, _ = np.fromfile(
+      weight_file, dtype=np.float32, count=5)
+
+  t1 = time.time()
+  img = return_image(args["path_to_img"])
+  t2 = time.time()
+  print('time: {}'.format(t2 - t1))
+
+  cv2.imwrite("result_"+ args["path_to_img"].split("/")[-1], img)
+  

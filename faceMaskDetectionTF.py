@@ -21,6 +21,9 @@ from tensorflow.keras.losses import (
     sparse_categorical_crossentropy
 )
 
+import cv2
+import time
+import argparse
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -249,10 +252,8 @@ def return_image(filename):
         open(filename, 'rb').read(), channels=3)
     img = tf.expand_dims(img_raw, 0)
     img = transform_images(img, 416)
-    t1 = time.time()
+
     boxes, scores, classes, nums = yolo(img)
-    t2 = time.time()
-    print('time: {}'.format(t2 - t1))
 
     print('detections:')
 
@@ -266,18 +267,90 @@ def return_image(filename):
     img = draw_outputs(img, (boxes, scores, classes, nums), class_names_local)
     
     return img
+
+from absl import logging
+
+YOLOV3_LAYER_LIST = [
+    'yolo_darknet',
+    'yolo_conv_0',
+    'yolo_output_0',
+    'yolo_conv_1',
+    'yolo_output_1',
+    'yolo_conv_2',
+    'yolo_output_2',
+]
+
+def load_darknet_weights(model, weights_file):
+    wf = open(weights_file, 'rb')
+    major, minor, revision, seen, _ = np.fromfile(wf, dtype=np.int32, count=5)
+   
+    layers = YOLOV3_LAYER_LIST
+
+    for layer_name in layers:
+
+        sub_model = model.get_layer(layer_name)
+        for i, layer in enumerate(sub_model.layers):
+
+            if not layer.name.startswith('conv2d'):
+                continue
+            batch_norm = None
+            if i + 1 < len(sub_model.layers) and \
+                    sub_model.layers[i + 1].name.startswith('batch_norm'):
+                batch_norm = sub_model.layers[i + 1]
+
+            logging.info("{}/{} {}".format(
+                sub_model.name, layer.name, 'bn' if batch_norm else 'bias'))
+
+            filters = layer.filters
+            size = layer.kernel_size[0]
+            in_dim = layer.input_shape[-1]
+
+            if batch_norm is None:
+                conv_bias = np.fromfile(wf, dtype=np.float32, count=filters)            
+            else:
+                # darknet [beta, gamma, mean, variance]
+                bn_weights = np.fromfile(
+                    wf, dtype=np.float32, count=4 * filters)
+                # tf [gamma, beta, mean, variance]
+                bn_weights = bn_weights.reshape((4, filters))[[1, 0, 2, 3]]
+
+            # darknet shape (out_dim, in_dim, height, width)
+            conv_shape = (filters, in_dim, size, size)
+            conv_weights = np.fromfile(
+                wf, dtype=np.float32, count=np.product(conv_shape))
+            # tf shape (height, width, in_dim, out_dim)
+            conv_weights = conv_weights.reshape(
+                conv_shape).transpose([2, 3, 1, 0])
+
+            if batch_norm is None:
+                layer.set_weights([conv_weights, conv_bias])
+            else:
+                layer.set_weights([conv_weights])
+                batch_norm.set_weights(bn_weights)
+
+    # assert len(wf.read()) == 0, 'failed to read all data'
+    wf.close()
     
-print('loading model...')
-classes_path = "/content/drive/MyDrive/Đồ án/Lập trình song song ứng dụng/yolo_mask.names"
-weights_path = "/content/drive/MyDrive/Đồ án/Lập trình song song ứng dụng/yolov3_mask.tf"
-num_classes = 3            # number of classes in model
-yolo = YoloV3(classes=num_classes)    
-yolo.load_weights(weights_path).expect_partial()
-print('weights loaded')
-class_names = [c.strip() for c in open(classes_path).readlines()]
-print('classes loaded')
 
+if __name__ == "__main__":
+# Construct an argument parser
+  all_args = argparse.ArgumentParser()
 
-img = return_image("/content/drive/MyDrive/Đồ án/Lập trình song song ứng dụng/maksssksksss0.png")
-from google.colab.patches import cv2_imshow
-cv2_imshow(img)
+# Add arguments to the parser
+  all_args.add_argument("-image", "--path_to_img", required=True)
+  all_args.add_argument("-weight", "--path_to_weight", required=True)
+  args = vars(all_args.parse_args())
+  t1 = time.time()
+  print('loading model...')
+  num_classes = 3            # number of classes in model
+  yolo = YoloV3(classes=num_classes)    
+  load_darknet_weights(yolo,args["path_to_weight"])
+  print('weights loaded')
+  class_names = ["mask_weared_incorrect,","with_mask","without_mask"]
+  print('classes loaded')
+
+  img = return_image(args["path_to_img"])
+  t2 = time.time()
+  print('time: {}'.format(t2 - t1))
+
+  cv2.imwrite("result_"+ args["path_to_img"].split("/")[-1], img)
