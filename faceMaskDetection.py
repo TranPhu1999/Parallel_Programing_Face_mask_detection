@@ -25,7 +25,7 @@ yolo_anchors = np.array([(10, 13), (16, 30), (33, 23), (30, 61), (62, 45),
                         np.float32) / 416
 yolo_anchor_masks = np.array([[6, 7, 8], [3, 4, 5], [0, 1, 2]])
 
-
+@jit(nopython=True)
 def BatchNormalization_forward(input, gamma, beta, moving_mean, moving_variance, epsilon=0.001):
 
     mean_x = moving_mean.copy()
@@ -77,7 +77,7 @@ def correlate2d(input, kernel, stride=1, padding="valid"):
 # Tích chập tiến
 # @jit(nopython=True)
 
-
+@jit()
 def Convolution_forward(input, kernel, filters, use_batchnorm=True, bias=[[[]]], stride=1, padding="valid"):
 
     _, input_height, input_width, input_depth = input.shape
@@ -122,7 +122,7 @@ def npLeakyReLU(x, alpha=0.01):
 
 # Layer Darknet Conv bao gồm 1 layer convole đi kèm với batch normalization và leakyReLU
 
-
+@jit()
 def DarknetConv(x, filters, size, strides=1, batch_norm=True):
     if strides == 1:
         padding = 'same'
@@ -276,7 +276,7 @@ def yolo_boxes(pred, anchors, classes):
 
 # reference: https://towardsdatascience.com/non-maxima-suppression-139f7e00f0b5
 
-
+@jit()
 def combined_non_max_suppression(boxes, scores, iou_threshold, score_threshold):
     # Return an empty list, if no boxes given
     if np.shape(boxes)[0] == 0:
