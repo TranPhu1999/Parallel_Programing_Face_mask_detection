@@ -112,12 +112,12 @@ def Convolution_forward(input, kernel, filters, use_batchnorm=True, bias=[[[]]],
 
 @jit(nopython=True)
 def npLeakyReLU(x, alpha=0.01):
-    (n, x_h, x_w, n_f) = x.shape
-    for f in range(n_f):
+    (n, x_h, x_w, n_ker) = x.shape
+    for k in range(n_ker):
         for r in range(x_h):
             for c in range(x_w):
-                if x[0, r, c, f] < 0:
-                    x[0, r, c, f] = alpha*x[0, r, c, f]
+                if x[0, r, c, k] < 0:
+                    x[0, r, c, k] = alpha*x[0, r, c, k]
     return x
 
 # Layer Darknet Conv bao gồm 1 layer convole đi kèm với batch normalization và leakyReLU
