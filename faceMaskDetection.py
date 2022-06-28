@@ -23,7 +23,6 @@ yolo_anchors = np.array([(10, 13), (16, 30), (33, 23), (30, 61), (62, 45),
 yolo_anchor_masks = np.array([[6, 7, 8], [3, 4, 5], [0, 1, 2]])
 
 
-@jit(nopython=True)
 def BatchNormalization_forward(input, gamma, beta, moving_mean, moving_variance, epsilon=0.001):
 
     mean_x = moving_mean.copy()
@@ -112,7 +111,6 @@ def npLeakyReLU(x, alpha=0.01):
     return np.where(x >= 0, x, x*alpha)
 
 # Layer Darknet Conv bao gồm 1 layer convole đi kèm với batch normalization và leakyReLU
-@jit()
 def DarknetConv(x, filters, size, strides=1, batch_norm=True):
     if strides == 1:
         padding = 'same'
@@ -152,7 +150,6 @@ def DarknetConv(x, filters, size, strides=1, batch_norm=True):
         x = npLeakyReLU(x, alpha=0.1)
     return x
 
-@jit()
 def DarknetResidual(x, filters):
     prev = x  # Skip connection, giúp các mạng neural có cấu trúc quá sâu giảm thiểu mất mát feature khi đi xuống
     x = DarknetConv(x, filters // 2, 1)
@@ -161,14 +158,12 @@ def DarknetResidual(x, filters):
     return x
 
 # Mỗi Darknet Block gồm 1 Darknet convole và n Darknet Residual
-@jit()
 def DarknetBlock(x, filters, blocks):
     x = DarknetConv(x, filters, 3, strides=2)
     for _ in range(blocks):
         x = DarknetResidual(x, filters)
     return x
 
-@jit()
 def Darknet(inputs):
     x = inputs
     x = DarknetConv(x, 32, 3)
@@ -221,13 +216,12 @@ def YoloOutput(filters, anchors, classes, name=None):
 # vậy nên cần dùng sigmoid để trả về giá trị từ (0-1)
 
 
-@jit(nopython=True)
+# @jit(nopython=True)
 def sigmoid(x):
     z = np.exp(-x)
     sig = 1 / (1 + z)
     return sig
 
-@jit()
 def yolo_boxes(pred, anchors, classes):
     grid_size = np.shape(pred)[1]
 
@@ -254,7 +248,6 @@ def yolo_boxes(pred, anchors, classes):
 
 # reference: https://towardsdatascience.com/non-maxima-suppression-139f7e00f0b5
 
-@jit()
 def combined_non_max_suppression(boxes, scores, iou_threshold, score_threshold):
     # Return an empty list, if no boxes given
     if np.shape(boxes)[0] == 0:
@@ -307,7 +300,6 @@ def combined_non_max_suppression(boxes, scores, iou_threshold, score_threshold):
     classes_result = classes[indices]
     return boxes_result[:, 0, :], scores_result[:, 0], classes_result
 
-@jit()
 def yolo_nms(outputs, anchors, masks, classes):
     # boxes, objectness, class_probs
     b, c, t = [], [], []
@@ -333,7 +325,6 @@ def yolo_nms(outputs, anchors, masks, classes):
 
     return boxes, scores, classes
 
-@jit()
 def YoloV3(inputs, size=None, channels=3, anchors=yolo_anchors,
            masks=yolo_anchor_masks, classes=3):
 
@@ -374,7 +365,6 @@ class_names = ["mask_weared_incorrect,", "with_mask", "without_mask"]
 
 # Reference: https://meghal-darji.medium.com/implementing-bilinear-interpolation-for-image-resizing-357cbb2c2722
 
-@jit()
 def img_resize(original_img, new_h, new_w):
     import numpy as np
     import math
