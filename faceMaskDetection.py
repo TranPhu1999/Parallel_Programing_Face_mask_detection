@@ -233,10 +233,21 @@ def YoloOutput(filters, anchors, classes, name=None):
 
 
 # @jit(nopython=True)
+# def sigmoid(x):
+#     z = np.exp(-x)
+#     sig = 1 / (1 + z)
+#     return sig
+
+@jit(nopython=True)
 def sigmoid(x):
-    z = np.exp(-x)
-    sig = 1 / (1 + z)
-    return sig
+    (n, s, y, z, t) = np.shape(x)
+    for i in range(s):
+        for j in range(y):
+            for k in range(z):
+                for h in range(t):
+                    temp = np.exp(-x[0, i, j, k, h])
+                    x[0, i, j, k, h] = 1 / (1 + temp)
+    return x
 
 
 def yolo_boxes(pred, anchors, classes):
