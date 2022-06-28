@@ -527,5 +527,5 @@ major, minor, revision, seen, _ = np.fromfile(
 
 if __name__ == "__main__":
     img = Main()
-    from google.colab.patches import cv2_imshow
-    cv2_imshow(img)
+    # from google.colab.patches import cv2_imshow
+    # cv2_imshow(img)
