@@ -573,5 +573,5 @@ if __name__ == "__main__":
   t2 = time.time()
   print('time: {}'.format(t2 - t1))
 
-  cv2.imwrite("jit_result_"+ args["path_to_img"].split("/")[-1], img)
+  cv2.imwrite("parallel_result_"+ args["path_to_img"].split("/")[-1], img)
   
