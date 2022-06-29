@@ -54,7 +54,7 @@ def BatchNormalization_forward(input, gamma, beta, moving_mean, moving_variance,
 #           temp += input[i_kernel+r*stride,j_kernel+c*stride]*kernel[i_kernel, j_kernel]
 #     output[r, c] = temp
 
-#hàm chạy song song đang bị chạy rất chậm nhóm chưa tìm ra được cách fix
+# hàm chạy song song đang bị chạy rất chậm nhóm chưa tìm ra được cách fix
 # def correlate2d(input, kernel, stride=1, padding="valid"):
 #     h_i, w_i = input.shape
 #     h_k, w_k = kernel.shape
@@ -158,17 +158,33 @@ def Convolution_forward(input, kernel, filters, use_batchnorm=True, bias=[[[]]],
 
 # hàm kích hoạt leakyReLU
 
+# @jit(nopython=True)
+# def npLeakyReLU(x, alpha=0.01):
+#     (n, x_h, x_w, n_ker) = x.shape
+#     for k in range(n_ker):
+#         for r in range(x_h):
+#             for c in range(x_w):
+#                 if x[0, r, c, k] < 0:
+#                     x[0, r, c, k] = alpha*x[0, r, c, k]
+#     return x
 
-@jit(nopython=True)
-def npLeakyReLU(x, alpha=0.01):
+@cuda.jit
+def npLeakyReLU_kernel(x, x_h, x_w, n_ker, alpha):
+    c, r, k = cuda.grid(3)
+
+    if k < n_ker and r < x_h and c < x_w:
+        if x[0, r, c, k] < 0:
+            x[0, r, c, k] = alpha * x[0, r, c, k]
+
+
+def npLeakyReLU(x):
     (n, x_h, x_w, n_ker) = x.shape
-    for k in range(n_ker):
-        for r in range(x_h):
-            for c in range(x_w):
-                if x[0, r, c, k] < 0:
-                    x[0, r, c, k] = alpha*x[0, r, c, k]
+    block_size = (32, 32)
+    grid_size = ((math.ceil(x.shape[2]/block_size[0]),
+                  math.ceil(x.shape[1]/block_size[1]),
+                  n_ker))
+    npLeakyReLU_kernel[grid_size, block_size](x, x_h, x_w, n_ker, alpha=0.01)
     return x
-
 # Layer Darknet Conv bao gồm 1 layer convole đi kèm với batch normalization và leakyReLU
 
 
