@@ -225,7 +225,7 @@ def DarknetConv(x, filters, size, strides=1, batch_norm=True):
     if batch_norm:
         x = BatchNormalization_forward(
             x, gamma, beta, moving_mean, moving_variance)
-        x = npLeakyReLU(x, alpha=0.1)
+        x = npLeakyReLU(x)
     return x
 
 
