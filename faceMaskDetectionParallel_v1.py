@@ -27,6 +27,18 @@ yolo_anchors = np.array([(10, 13), (16, 30), (33, 23), (30, 61), (62, 45),
                         np.float32) / 416
 yolo_anchor_masks = np.array([[6, 7, 8], [3, 4, 5], [0, 1, 2]])
 
+# @jit(nopython=True)
+# def BatchNormalization_forward(input, gamma, beta, moving_mean, moving_variance, epsilon=0.001):
+
+#     mean_x = moving_mean.copy()
+#     var_x = moving_variance.copy()
+
+#     var_x += epsilon
+#     stddev_x = np.sqrt(var_x)
+#     x_minus_mean = input - mean_x
+#     standard_x = x_minus_mean / stddev_x
+#     return gamma * standard_x + beta
+
 @jit(nopython=True)
 def BatchNormalization_forward(input, gamma, beta, moving_mean, moving_variance , epsilon = 0.001):
   mean_x = moving_mean.copy()
@@ -87,8 +99,10 @@ def correlate2d(input, kernel, stride=1, padding="valid"):
     return output_conv
 
 # Tích chập tiến
+# @jit(nopython=True)
+
 @jit(nopython=True)
-def Convolution_forward(input, kernel, filters, bias, use_batchnorm=True, stride=1, padding="valid"):
+def Convolution_forward(input, kernel, filters, use_batchnorm=True, bias=[[[]]], stride=1, padding="valid"):
 
     _, input_height, input_width, input_depth = input.shape
     kernel_height, kernel_witdh, _, _ = kernel.shape
@@ -119,6 +133,7 @@ def Convolution_forward(input, kernel, filters, bias, use_batchnorm=True, stride
 
 # hàm kích hoạt leakyReLU
 
+
 # @jit(nopython=True)
 # def npLeakyReLU(x, alpha=0.01):
 #     (n, x_h, x_w, n_ker) = x.shape
@@ -146,8 +161,8 @@ def npLeakyReLU(x, alpha=0.01):
                   n_ker))
     npLeakyReLU_kernel[grid_size, block_size](x, x_h, x_w, n_ker, alpha)
     return x
-# Layer Darknet Conv bao gồm 1 layer convole đi kèm với batch normalization và leakyReLU
 
+# Layer Darknet Conv bao gồm 1 layer convole đi kèm với batch normalization và leakyReLU
 
 @jit()
 def DarknetConv(x, filters, size, strides=1, batch_norm=True):
@@ -303,7 +318,7 @@ def yolo_boxes(pred, anchors, classes):
 
 # reference: https://towardsdatascience.com/non-maxima-suppression-139f7e00f0b5
 
-@jit()
+# @jit()s
 def combined_non_max_suppression(boxes, scores, iou_threshold, score_threshold):
     # Return an empty list, if no boxes given
     if np.shape(boxes)[0] == 0:
@@ -441,10 +456,10 @@ def img_resize(original_img, new_h, new_w):
             x = i * h_scale_factor
             y = j * w_scale_factor
             # calculate the coordinate values for 4 surrounding pixels.
-            x_floor = int(x)
-            x_ceil = min(old_h - 1, int(x))
-            y_floor = int(y)
-            y_ceil = min(old_w - 1, int(y))
+            x_floor = math.floor(x)
+            x_ceil = min(old_h - 1, math.ceil(x))
+            y_floor = math.floor(y)
+            y_ceil = min(old_w - 1, math.ceil(y))
 
             if (x_ceil == x_floor) and (y_ceil == y_floor):
                 q = original_img[int(x), int(y), :]

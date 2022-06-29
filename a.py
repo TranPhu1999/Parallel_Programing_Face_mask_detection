@@ -3,10 +3,11 @@ from absl import flags
 from absl.flags import FLAGS
 import numpy as np
 import numba
-from numba import jit
+from numba import jit, cuda
 import tensorflow as tf
 import time
 import cv2
+import math
 
 import argparse
 import warnings
@@ -27,16 +28,26 @@ yolo_anchors = np.array([(10, 13), (16, 30), (33, 23), (30, 61), (62, 45),
 yolo_anchor_masks = np.array([[6, 7, 8], [3, 4, 5], [0, 1, 2]])
 
 @jit(nopython=True)
-def BatchNormalization_forward(input, gamma, beta, moving_mean, moving_variance, epsilon=0.001):
+def BatchNormalization_forward(input, gamma, beta, moving_mean, moving_variance , epsilon = 0.001):
+  mean_x = moving_mean.copy()
+  var_x = moving_variance.copy()
 
-    mean_x = moving_mean.copy()
-    var_x = moving_variance.copy()
+  stddev_x = np.zeros(input.shape)
+  x_minus_mean = np.zeros(input.shape)
+  standard_x = np.zeros(input.shape)
+  result = np.zeros(input.shape)
 
-    var_x += epsilon
-    stddev_x = np.sqrt(var_x)
-    x_minus_mean = input - mean_x
-    standard_x = x_minus_mean / stddev_x
-    return gamma * standard_x + beta
+  for i in range(input.shape[0]):
+    for j in range(input.shape[1]):
+      for k in range(input.shape[2]):
+        for h in range(input.shape[3]):
+          var_x[h] += epsilon
+          stddev_x[i,j,k,h] = math.sqrt(var_x[h])
+          x_minus_mean[i,j,k,h] = input[i,j,k,h] - mean_x[h]
+          standard_x[i,j,k,h] = x_minus_mean[i,j,k,h] / stddev_x[i,j,k,h]
+          result[i,j,k,h] = gamma[h] * standard_x[i,j,k,h] + beta[h]
+
+  return result
 
 
 # Phép correlate tham khảo từ đây https://numpy.org/doc/stable/reference/generated/numpy.convolve.html,
@@ -76,10 +87,8 @@ def correlate2d(input, kernel, stride=1, padding="valid"):
     return output_conv
 
 # Tích chập tiến
-# @jit(nopython=True)
-
-@jit()
-def Convolution_forward(input, kernel, filters, use_batchnorm=True, bias=[[[]]], stride=1, padding="valid"):
+@jit(nopython=True)
+def Convolution_forward(input, kernel, filters, bias, use_batchnorm=True, stride=1, padding="valid"):
 
     _, input_height, input_width, input_depth = input.shape
     kernel_height, kernel_witdh, _, _ = kernel.shape
@@ -110,20 +119,35 @@ def Convolution_forward(input, kernel, filters, use_batchnorm=True, bias=[[[]]],
 
 # hàm kích hoạt leakyReLU
 
+# @jit(nopython=True)
+# def npLeakyReLU(x, alpha=0.01):
+#     (n, x_h, x_w, n_ker) = x.shape
+#     for k in range(n_ker):
+#         for r in range(x_h):
+#             for c in range(x_w):
+#                 if x[0, r, c, k] < 0:
+#                     x[0, r, c, k] = alpha*x[0, r, c, k]
+#     return x
 
-@jit(nopython=True)
+@cuda.jit
+def npLeakyReLU_kernel(x, x_h, x_w, n_ker, alpha):
+    c, r, k = cuda.grid(3)
+
+    if k < n_ker and r < x_h and c < x_w:
+        if x[0, r, c, k] < 0:
+            x[0, r, c, k] = alpha * x[0, r, c, k]
+
+
 def npLeakyReLU(x, alpha=0.01):
     (n, x_h, x_w, n_ker) = x.shape
-    for k in range(n_ker):
-        for r in range(x_h):
-            for c in range(x_w):
-                if x[0, r, c, k] < 0:
-                    x[0, r, c, k] = alpha*x[0, r, c, k]
+    block_size = (32, 32)
+    grid_size = ((math.ceil(x.shape[2]/block_size[0]),
+                  math.ceil(x.shape[1]/block_size[1]),
+                  n_ker))
+    npLeakyReLU_kernel[grid_size, block_size](x, x_h, x_w, n_ker, alpha)
     return x
 
 # Layer Darknet Conv bao gồm 1 layer convole đi kèm với batch normalization và leakyReLU
-
-@jit()
 def DarknetConv(x, filters, size, strides=1, batch_norm=True):
     if strides == 1:
         padding = 'same'
@@ -135,10 +159,9 @@ def DarknetConv(x, filters, size, strides=1, batch_norm=True):
 
 # Load weight------------------------------------------------------------
 
-    global offset_read_weight
     global weight_file
 
-    bias = None
+    bias = np.zeros(filters)
     if batch_norm is False:
         # read bias weight of convolutional layer if there is no batch normalization
         bias = np.fromfile(weight_file, dtype=np.float32, count=filters)
@@ -277,7 +300,7 @@ def yolo_boxes(pred, anchors, classes):
 
 # reference: https://towardsdatascience.com/non-maxima-suppression-139f7e00f0b5
 
-# @jit()s
+# @jit()
 def combined_non_max_suppression(boxes, scores, iou_threshold, score_threshold):
     # Return an empty list, if no boxes given
     if np.shape(boxes)[0] == 0:
@@ -415,10 +438,10 @@ def img_resize(original_img, new_h, new_w):
             x = i * h_scale_factor
             y = j * w_scale_factor
             # calculate the coordinate values for 4 surrounding pixels.
-            x_floor = math.floor(x)
-            x_ceil = min(old_h - 1, math.ceil(x))
-            y_floor = math.floor(y)
-            y_ceil = min(old_w - 1, math.ceil(y))
+            x_floor = int(x)
+            x_ceil = min(old_h - 1, int(x))
+            y_floor = int(y)
+            y_ceil = min(old_w - 1, int(y))
 
             if (x_ceil == x_floor) and (y_ceil == y_floor):
                 q = original_img[int(x), int(y), :]
@@ -532,5 +555,5 @@ if __name__ == "__main__":
   t2 = time.time()
   print('time: {}'.format(t2 - t1))
 
-  cv2.imwrite("jit_result_"+ args["path_to_img"].split("/")[-1], img)
+  cv2.imwrite("parallelv1_result_"+ args["path_to_img"].split("/")[-1], img)
   
