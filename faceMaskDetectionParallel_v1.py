@@ -177,13 +177,13 @@ def npLeakyReLU_kernel(x, x_h, x_w, n_ker, alpha):
             x[0, r, c, k] = alpha * x[0, r, c, k]
 
 
-def npLeakyReLU(x):
+def npLeakyReLU(x, alpha=0.01):
     (n, x_h, x_w, n_ker) = x.shape
     block_size = (32, 32)
     grid_size = ((math.ceil(x.shape[2]/block_size[0]),
                   math.ceil(x.shape[1]/block_size[1]),
                   n_ker))
-    npLeakyReLU_kernel[grid_size, block_size](x, x_h, x_w, n_ker, 0.1)
+    npLeakyReLU_kernel[grid_size, block_size](x, x_h, x_w, n_ker, alpha)
     return x
 # Layer Darknet Conv bao gồm 1 layer convole đi kèm với batch normalization và leakyReLU
 
@@ -225,7 +225,7 @@ def DarknetConv(x, filters, size, strides=1, batch_norm=True):
     if batch_norm:
         x = BatchNormalization_forward(
             x, gamma, beta, moving_mean, moving_variance)
-        x = npLeakyReLU(x)
+        x = npLeakyReLU(x, alpha=0.1)
     return x
 
 
