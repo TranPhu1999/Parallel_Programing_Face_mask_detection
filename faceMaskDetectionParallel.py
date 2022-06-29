@@ -27,39 +27,39 @@ yolo_anchors = np.array([(10, 13), (16, 30), (33, 23), (30, 61), (62, 45),
                         np.float32) / 416
 yolo_anchor_masks = np.array([[6, 7, 8], [3, 4, 5], [0, 1, 2]])
 
-# @jit(nopython=True)
-# def BatchNormalization_forward(input, gamma, beta, moving_mean, moving_variance, epsilon=0.001):
-
-#     mean_x = moving_mean.copy()
-#     var_x = moving_variance.copy()
-
-#     var_x += epsilon
-#     stddev_x = np.sqrt(var_x)
-#     x_minus_mean = input - mean_x
-#     standard_x = x_minus_mean / stddev_x
-#     return gamma * standard_x + beta
-
 @jit(nopython=True)
-def BatchNormalization_forward(input, gamma, beta, moving_mean, moving_variance , epsilon = 0.001):
-  mean_x = moving_mean.copy()
-  var_x = moving_variance.copy()
+def BatchNormalization_forward(input, gamma, beta, moving_mean, moving_variance, epsilon=0.001):
 
-  stddev_x = np.zeros(input.shape)
-  x_minus_mean = np.zeros(input.shape)
-  standard_x = np.zeros(input.shape)
-  result = np.zeros(input.shape)
+    mean_x = moving_mean.copy()
+    var_x = moving_variance.copy()
 
-  for i in range(input.shape[0]):
-    for j in range(input.shape[1]):
-      for k in range(input.shape[2]):
-        for h in range(input.shape[3]):
-          var_x[h] += epsilon
-          stddev_x[i,j,k,h] = math.sqrt(var_x[h])
-          x_minus_mean[i,j,k,h] = input[i,j,k,h] - mean_x[h]
-          standard_x[i,j,k,h] = x_minus_mean[i,j,k,h] / stddev_x[i,j,k,h]
-          result[i,j,k,h] = gamma[h] * standard_x[i,j,k,h] + beta[h]
+    var_x += epsilon
+    stddev_x = np.sqrt(var_x)
+    x_minus_mean = input - mean_x
+    standard_x = x_minus_mean / stddev_x
+    return gamma * standard_x + beta
 
-  return result
+# @jit(nopython=True)
+# def BatchNormalization_forward(input, gamma, beta, moving_mean, moving_variance , epsilon = 0.001):
+#   mean_x = moving_mean.copy()
+#   var_x = moving_variance.copy()
+
+#   stddev_x = np.zeros(input.shape)
+#   x_minus_mean = np.zeros(input.shape)
+#   standard_x = np.zeros(input.shape)
+#   result = np.zeros(input.shape)
+
+#   for i in range(input.shape[0]):
+#     for j in range(input.shape[1]):
+#       for k in range(input.shape[2]):
+#         for h in range(input.shape[3]):
+#           var_x[h] += epsilon
+#           stddev_x[i,j,k,h] = math.sqrt(var_x[h])
+#           x_minus_mean[i,j,k,h] = input[i,j,k,h] - mean_x[h]
+#           standard_x[i,j,k,h] = x_minus_mean[i,j,k,h] / stddev_x[i,j,k,h]
+#           result[i,j,k,h] = gamma[h] * standard_x[i,j,k,h] + beta[h]
+
+#   return result
 
 
 # Phép correlate tham khảo từ đây https://numpy.org/doc/stable/reference/generated/numpy.convolve.html,
