@@ -1,5 +1,5 @@
-#init file parallel v1
-# init file tuần tự
+# init file parallel v1
+
 from absl import flags
 from absl.flags import FLAGS
 import numpy as np
@@ -27,6 +27,7 @@ yolo_anchors = np.array([(10, 13), (16, 30), (33, 23), (30, 61), (62, 45),
                         np.float32) / 416
 yolo_anchor_masks = np.array([[6, 7, 8], [3, 4, 5], [0, 1, 2]])
 
+
 @jit(nopython=True)
 def BatchNormalization_forward(input, gamma, beta, moving_mean, moving_variance, epsilon=0.001):
 
@@ -42,6 +43,51 @@ def BatchNormalization_forward(input, gamma, beta, moving_mean, moving_variance,
 
 # Phép correlate tham khảo từ đây https://numpy.org/doc/stable/reference/generated/numpy.convolve.html,
 # https://docs.scipy.org/doc//scipy-1.3.0/reference/generated/scipy.signal.correlate2d.html
+
+# @cuda.jit
+# def calcOutput_conv_kernel(input, kernel, output, h_k, w_k, h_out, w_out, stride):
+#   c, r = cuda.grid(2)
+#   if r < h_out and c < w_out:
+#     temp = 0
+#     for i_kernel in range(h_k):
+#         for j_kernel in range(w_k):
+#           temp += input[i_kernel+r*stride,j_kernel+c*stride]*kernel[i_kernel, j_kernel]
+#     output[r, c] = temp
+
+#hàm chạy song song đang bị chạy rất chậm nhóm chưa tìm ra được cách fix
+# def correlate2d(input, kernel, stride=1, padding="valid"):
+#     h_i, w_i = input.shape
+#     h_k, w_k = kernel.shape
+
+#     if padding == 'valid':
+#         p_h = 0
+#         p_w = 0
+
+#     if padding == 'same':
+#         p_h = int((h_k - 1)/2)
+#         p_w = int((w_k - 1)/2)
+
+#     behind = np.zeros((h_i+2*p_h, w_i+2*p_w))
+#     behind[p_h:h_i+p_h, p_w:w_i+p_w] = input
+#     input = behind
+
+#     h_out = int((h_i - h_k + 2*p_h)/stride + 1)
+#     w_out = int((w_i - w_k + 2*p_w)/stride + 1)
+
+#     output_conv = np.zeros((h_out, w_out))
+
+#     block_size = kernel.shape
+#     dInput = cuda.to_device(input)
+#     dKernel = cuda.to_device(kernel)
+#     dOut = cuda.to_device(output_conv)
+#     grid_size = (math.ceil(w_out / block_size[0]),
+#                math.ceil(h_out / block_size[1]))
+#     calcOutput_conv[grid_size, block_size](dInput, dKernel, dOut, h_k, w_k, h_out, w_out, stride); cuda.synchronize()
+#     output_conv = dOut.copy_to_host()
+
+#     return output_conv
+
+
 @jit(nopython=True)
 def correlate2d(input, kernel, stride=1, padding="valid"):
     h_i, w_i = input.shape
@@ -78,6 +124,7 @@ def correlate2d(input, kernel, stride=1, padding="valid"):
 
 # Tích chập tiến
 # @jit(nopython=True)
+
 
 @jit()
 def Convolution_forward(input, kernel, filters, use_batchnorm=True, bias=[[[]]], stride=1, padding="valid"):
@@ -123,6 +170,7 @@ def npLeakyReLU(x, alpha=0.01):
     return x
 
 # Layer Darknet Conv bao gồm 1 layer convole đi kèm với batch normalization và leakyReLU
+
 
 @jit()
 def DarknetConv(x, filters, size, strides=1, batch_norm=True):
@@ -277,6 +325,7 @@ def yolo_boxes(pred, anchors, classes):
     return bbox, objectness, class_probs, pred_box
 
 # reference: https://towardsdatascience.com/non-maxima-suppression-139f7e00f0b5
+
 
 @jit()
 def combined_non_max_suppression(boxes, scores, iou_threshold, score_threshold):
@@ -490,25 +539,25 @@ def draw_outputs(img, outputs, class_names):
 
 
 def return_image(filename):
-  img_raw = cv2.imread(filename)
-  img_raw = cv2.cvtColor(img_raw, cv2.COLOR_BGR2RGB)
+    img_raw = cv2.imread(filename)
+    img_raw = cv2.cvtColor(img_raw, cv2.COLOR_BGR2RGB)
 
-  img = transform_images(img_raw, size)
-  img = np.expand_dims(img, 0)
+    img = transform_images(img_raw, size)
+    img = np.expand_dims(img, 0)
 
-  boxes, scores, classes = YoloV3(img, classes=num_classes)
+    boxes, scores, classes = YoloV3(img, classes=num_classes)
 
-  print('detections:')
+    print('detections:')
 
-  class_names_local = class_names
+    class_names_local = class_names
 
-  for i in range(len(boxes)):
-      print('\t{}, {}, {}'.format(class_names_local[int(
-          classes[i])], np.array(scores[i]), np.array(boxes[i])))
-  img = cv2.cvtColor(img_raw, cv2.COLOR_RGB2BGR)
-  img = draw_outputs(img, (boxes, scores, classes), class_names_local)
+    for i in range(len(boxes)):
+        print('\t{}, {}, {}'.format(class_names_local[int(
+            classes[i])], np.array(scores[i]), np.array(boxes[i])))
+    img = cv2.cvtColor(img_raw, cv2.COLOR_RGB2BGR)
+    img = draw_outputs(img, (boxes, scores, classes), class_names_local)
 
-  return img
+    return img
 
 
 # weight_file = open(sys.argv[1], "rb")
@@ -516,22 +565,21 @@ def return_image(filename):
 #     weight_file, dtype=np.float32, count=5)
 
 if __name__ == "__main__":
-# Construct an argument parser
-  all_args = argparse.ArgumentParser()
+    # Construct an argument parser
+    all_args = argparse.ArgumentParser()
 
 # Add arguments to the parser
-  all_args.add_argument("-image", "--path_to_img", required=True)
-  all_args.add_argument("-weight", "--path_to_weight", required=True)
-  args = vars(all_args.parse_args())
-  
-  weight_file = open(args["path_to_weight"], "rb")
-  major, minor, revision, seen, _ = np.fromfile(
-      weight_file, dtype=np.float32, count=5)
+    all_args.add_argument("-image", "--path_to_img", required=True)
+    all_args.add_argument("-weight", "--path_to_weight", required=True)
+    args = vars(all_args.parse_args())
 
-  t1 = time.time()
-  img = return_image(args["path_to_img"])
-  t2 = time.time()
-  print('time: {}'.format(t2 - t1))
+    weight_file = open(args["path_to_weight"], "rb")
+    major, minor, revision, seen, _ = np.fromfile(
+        weight_file, dtype=np.float32, count=5)
 
-  cv2.imwrite("jit_result_"+ args["path_to_img"].split("/")[-1], img)
-  
+    t1 = time.time()
+    img = return_image(args["path_to_img"])
+    t2 = time.time()
+    print('time: {}'.format(t2 - t1))
+
+    cv2.imwrite("jit_result_" + args["path_to_img"].split("/")[-1], img)
