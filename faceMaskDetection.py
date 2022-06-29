@@ -123,7 +123,6 @@ def npLeakyReLU(x, alpha=0.01):
 
 # Layer Darknet Conv bao gồm 1 layer convole đi kèm với batch normalization và leakyReLU
 
-@jit()
 def DarknetConv(x, filters, size, strides=1, batch_norm=True):
     if strides == 1:
         padding = 'same'

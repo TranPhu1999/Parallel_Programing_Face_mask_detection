@@ -1,4 +1,8 @@
 #How To Run
 
-Bước 1: Chạy run all file Report.ipynb, trong notebook có chứa các lệnh để clone github, tải file weight và file ảnh test từ drive
-Bước 2: Đợi notebook chạy xong. Kết quả sẽ nằm trong content.
+Bước 1: Chạy run all file Report.ipynb, trong notebook có chứa các lệnh để clone github, tải file weight và file ảnh test từ drive.
+Bước 2: Đợi notebook chạy xong. Kết quả sẽ nằm trong content. Ảnh của các file thực thi sẽ tương ứng có tên như sau:
+
+faceMaskDetectionTF.py -> "TF_result_" + tên file input
+faceMaskDetection.py -> "jit_result_" + tên file input
+faceMaskDetectionParallel.py -> "parallel_result_" + tên file input
