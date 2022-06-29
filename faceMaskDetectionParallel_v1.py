@@ -8,6 +8,7 @@ from numba import jit, cuda
 import tensorflow as tf
 import time
 import cv2
+import math
 
 import argparse
 import warnings
@@ -183,7 +184,7 @@ def npLeakyReLU(x, alpha=0.01):
     grid_size = ((math.ceil(x.shape[2]/block_size[0]),
                   math.ceil(x.shape[1]/block_size[1]),
                   n_ker))
-    npLeakyReLU_kernel[grid_size, block_size](x, x_h, x_w, n_ker, alpha)
+    npLeakyReLU_kernel[grid_size, block_size](x, x_h, x_w, n_ker, alpha=0.01)
     return x
 # Layer Darknet Conv bao gồm 1 layer convole đi kèm với batch normalization và leakyReLU
 
