@@ -183,7 +183,7 @@ def npLeakyReLU(x):
     grid_size = ((math.ceil(x.shape[2]/block_size[0]),
                   math.ceil(x.shape[1]/block_size[1]),
                   n_ker))
-    npLeakyReLU_kernel[grid_size, block_size](x, x_h, x_w, n_ker, alpha=0.01)
+    npLeakyReLU_kernel[grid_size, block_size](x, x_h, x_w, n_ker, 0.1)
     return x
 # Layer Darknet Conv bao gồm 1 layer convole đi kèm với batch normalization và leakyReLU
 
